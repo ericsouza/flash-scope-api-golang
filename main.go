@@ -13,10 +13,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type FlashList struct {
-	Flashes []Flash `json:"flashes"`
-}
-
 type Flash struct {
 	Type    string `json:"type"`
 	Content string `json:"content"`
@@ -103,7 +99,7 @@ func getMessages(c echo.Context) error {
 }
 
 func addMessages(c echo.Context) error {
-	var flashes FlashList
+	var flashes []Flash
 	// Fazer o Bind do JSON recebido na estrutura Message
 	if err := c.Bind(&flashes); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{
@@ -117,7 +113,7 @@ func addMessages(c echo.Context) error {
 	// Iniciar uma transação Redis para garantir que RPUSH e EXPIRE aconteçam juntos
 	_, err := rdb.Pipeline().Pipelined(ctx, func(pipeliner redis.Pipeliner) error {
 		// Adicionar cada mensagem na lista Redis usando RPUSH
-		for _, message := range flashes.Flashes {
+		for _, message := range flashes {
 			// Serializar a mensagem para armazenar no Redis
 			serializedMessage, err := json.Marshal(message)
 			if err != nil {
