@@ -115,7 +115,7 @@ func addMessages(c echo.Context) error {
 	rdb := c.Get(string(redisClientKey)).(*redis.Client)
 
 	// Iniciar uma transação Redis para garantir que RPUSH e EXPIRE aconteçam juntos
-	err := rdb.Watch(ctx, func(tx *redis.Tx) error {
+	_, err := rdb.Pipeline().Pipelined(ctx, func(pipeliner redis.Pipeliner) error {
 		// Adicionar cada mensagem na lista Redis usando RPUSH
 		for _, message := range flashes.Flashes {
 			// Serializar a mensagem para armazenar no Redis
@@ -125,18 +125,14 @@ func addMessages(c echo.Context) error {
 			}
 
 			// Executar RPUSH para adicionar a mensagem na lista
-			if err := rdb.RPush(ctx, redisKey, serializedMessage).Err(); err != nil {
-				return err
-			}
+			pipeliner.RPush(ctx, redisKey, serializedMessage)
 		}
 
 		// Atualizar o TTL da chave para 60 segundos
-		if err := rdb.Expire(ctx, redisKey, 60*time.Second).Err(); err != nil {
-			return err
-		}
+		pipeliner.Expire(ctx, redisKey, 60*time.Second)
 
 		return nil
-	}, redisKey) // A chave envolvida na transação
+	})
 
 	if err != nil {
 		log.Printf("Failed to save messages: %v", err)
