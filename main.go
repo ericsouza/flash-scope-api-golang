@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 )
 
@@ -50,6 +51,34 @@ func extractSubFromToken(c echo.Context) (string, error) {
 	}
 
 	return "", fmt.Errorf("invalid token claims")
+}
+
+// Handler para o endpoint de liveness com verificação de conexão Redis
+func readinessHandler(c echo.Context) error {
+	rdb := c.Get(string(redisClientKey)).(*redis.Client)
+
+	// Verifica a conexão com Redis
+	_, err := rdb.Ping(ctx).Result()
+	if err != nil {
+		return c.JSON(http.StatusServiceUnavailable, echo.Map{
+			"status":  "DOWN",
+			"message": "Redis connection failed",
+		})
+	}
+
+	// Se a conexão estiver ok, retorna um status 200 OK
+	return c.JSON(http.StatusOK, echo.Map{
+		"status": "UP",
+	})
+}
+
+// Handler para o endpoint de readiness
+func livenessHandler(c echo.Context) error {
+	// O endpoint de readiness pode fazer verificações adicionais, como verificar se o banco de dados está disponível
+	// Por simplicidade, estamos apenas retornando OK
+	return c.JSON(http.StatusServiceUnavailable, echo.Map{
+		"status": "UP",
+	})
 }
 
 func getMessages(c echo.Context) error {
@@ -148,7 +177,12 @@ type contextKey string
 const redisClientKey contextKey = "redisClient"
 const currentUserKey contextKey = "currentUser"
 
-func loadMiddlewares(e *echo.Echo, rdb *redis.Client) {
+func loadCommomMiddlewares(e *echo.Echo, rdb *redis.Client) {
+	e.Use(echoprometheus.NewMiddleware("myapp")) // adds middleware to gather metrics
+	e.GET("/q/metrics", echoprometheus.NewHandler())
+	e.GET("q/health/live", livenessHandler)
+	e.GET("q/health/ready", readinessHandler)
+
 	// Middleware para injetar o cliente Redis no contexto de cada requisição
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -157,18 +191,18 @@ func loadMiddlewares(e *echo.Echo, rdb *redis.Client) {
 			return next(c)
 		}
 	})
+}
 
-	// Middleware para injetar o sub do token JWT em todas as requests
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			sub, err := extractSubFromToken(c)
-			if err != nil {
-				return c.NoContent(http.StatusUnauthorized)
-			}
-			c.Set(string(currentUserKey), sub)
-			return next(c)
+func loadAuthenticationMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		sub, err := extractSubFromToken(c)
+		if err != nil {
+			return c.NoContent(http.StatusUnauthorized)
 		}
-	})
+		c.Set(string(currentUserKey), sub)
+		return next(c)
+	}
+
 }
 
 func main() {
@@ -181,10 +215,14 @@ func main() {
 	// Criar uma nova instância do Echo
 	e := echo.New()
 	// Carregar os middlewares
-	loadMiddlewares(e, rdb)
+	loadCommomMiddlewares(e, rdb)
 
-	e.GET("/api/v1/user/flash", getMessages)
-	e.POST("/api/v1/user/flash", addMessages)
+	userGroup := e.Group("/api/v1/user")
+
+	userGroup.Use(loadAuthenticationMiddleware)
+
+	userGroup.GET("/api/v1/user/flash", getMessages)
+	userGroup.POST("/api/v1/user/flash", addMessages)
 
 	// Iniciar o servidor na porta 5770
 	e.Logger.Fatal(e.Start(":5770"))

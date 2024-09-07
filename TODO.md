@@ -4,8 +4,9 @@
 - [x] Ter um middleware que injeta o sub do jwt atual
 - [ ] Colocar logging no padrão GELF
 - [ ] Colocar traceId nas requests
-- [ ] Colocar métricas do prometheus
-- [ ] Colocar health check do k8s
+- [x] Colocar métricas padrão do prometheus
+- [ ] Colocar métricas de negocio no prometheus
+- [x] Colocar health check do k8s
 - [ ] Tratar o current user como um tipo e nao apenas string
 - [ ] Dockerizar
 - [ ] Melhorar a dockerização seguindo as melhores práticas da comunidade golang
