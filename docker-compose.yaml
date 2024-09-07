@@ -1,0 +1,21 @@
+version: '3.7'
+
+networks:
+  flash_scope_api_network:
+    driver: bridge
+
+services:
+  redis:
+    image: 'bitnami/redis:7.0.15'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - 6379:6379
+    networks:
+      - flash_scope_api_network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 3000M
+
