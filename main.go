@@ -148,15 +148,7 @@ type contextKey string
 const redisClientKey contextKey = "redisClient"
 const currentUserKey contextKey = "currentUser"
 
-func main() {
-	rdb := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379", // endereço do Redis
-		DB:   0,                // use o banco de dados padrão
-	})
-
-	// Criar uma nova instância do Echo
-	e := echo.New()
-
+func loadMiddlewares(e *echo.Echo, rdb *redis.Client) {
 	// Middleware para injetar o cliente Redis no contexto de cada requisição
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -177,9 +169,22 @@ func main() {
 			return next(c)
 		}
 	})
+}
 
-	e.GET("/api/v1/user/messages", getMessages)
-	e.POST("/api/v1/user/messages", addMessages)
+func main() {
+	// Criar conexão com Redis
+	rdb := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379", // endereço do Redis
+		DB:   0,                // use o banco de dados padrão
+	})
+
+	// Criar uma nova instância do Echo
+	e := echo.New()
+	// Carregar os middlewares
+	loadMiddlewares(e, rdb)
+
+	e.GET("/api/v1/user/flash", getMessages)
+	e.POST("/api/v1/user/flash", addMessages)
 
 	// Iniciar o servidor na porta 5770
 	e.Logger.Fatal(e.Start(":5770"))

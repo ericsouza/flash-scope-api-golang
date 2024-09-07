@@ -1,10 +1,12 @@
 from os import environ
+import json
 from flask import Flask, flash, g, redirect, render_template, request, url_for
 import requests
 
 JWT_TOKEN = environ.get("JWT_TOKEN")
+USE_LOCAL_FLASH_SCOPE_API = environ.get("USE_LOCAL_FLASH_SCOPE_API", "false")
 
-FLASH_SCOPE_API_URL = "http://127.0.0.1:5770/api/v1/user/message"
+FLASH_SCOPE_API_URL = "http://localhost:5770/api/v1/user/flash"
 
 ADD_HEADERS = {
     "Authorization": f"Bearer {JWT_TOKEN}",
@@ -32,8 +34,7 @@ class FlashMessage:
         self.category = category
         self.content = content
 
-    @property
-    def json(self) -> dict[str, str]:
+    def to_json(self) -> dict[str, str]:
         return {"category": self.category, "content": self.content}
 
     @classmethod
@@ -46,9 +47,15 @@ class FlashMessage:
 def get_flash_messages() -> list[FlashMessage]:
     r = requests.get(FLASH_SCOPE_API_URL, headers=GET_HEADERS)
     json_flashes = r.json()
+
     flash_messages: list[FlashMessage] = []
     for json_flash in json_flashes:
-        flash_messages.append(FlashMessage.from_json(json_flash))
+        if (json_flash["type"] != "MESSAGE"):
+            # se nao é uma mensagem flash apenas ignoramos
+            continue
+        # o json (payload) vem como string (aspas escapadas) dentro do atributo "content"
+        flash_message_payload: dict = json.loads(json_flash["content"])
+        flash_messages.append(FlashMessage.from_json(flash_message_payload))
     return flash_messages
 
 
@@ -71,8 +78,12 @@ def input_flash_messages():
 def send_flash_messages_to_api(response):
     if "messages" not in g:  # no messages to add
         return response
-    payload: list[dict] = [msg.json for msg in g.messages]
-    requests.post(FLASH_SCOPE_API_URL, json=payload, headers=ADD_HEADERS)
+    json_flashes: list[dict] = []
+    message: FlashMessage
+    for message in g.messages:
+        payload: dict = {"type": "MESSAGE", "content": json.dumps(message.to_json())}
+        json_flashes.append(payload)
+    requests.post(FLASH_SCOPE_API_URL, json=json_flashes, headers=ADD_HEADERS)
     return response
 
 
