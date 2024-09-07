@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block body %}
+  <h2>Flash Scope Front-end Teste</h2>
+  <p>
+    Você quer <a href="{{ url_for('test_get') }}">testar?</a>
+  </p>
+  <br>
+  <p>
+    Você quer fazer <a href="{{ url_for('index') }}">atualizar</a> a página?
+  </p>
+{% endblock %}

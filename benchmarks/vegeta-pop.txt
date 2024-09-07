@@ -1,0 +1,2 @@
+GET http://localhost:5770/api/v1/user/message/all
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJERjU4MEY1MTRGQ0Y2QzZFMjM4ODE0OTc3MENBOUJCQiJ9.

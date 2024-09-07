@@ -181,6 +181,6 @@ func main() {
 	e.GET("/api/v1/user/messages", getMessages)
 	e.POST("/api/v1/user/messages", addMessages)
 
-	// Iniciar o servidor na porta 8083
-	e.Logger.Fatal(e.Start(":8083"))
+	// Iniciar o servidor na porta 5770
+	e.Logger.Fatal(e.Start(":5770"))
 }

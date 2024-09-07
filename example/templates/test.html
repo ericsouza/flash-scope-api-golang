@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block body %}
+  <h2>Quer testar qual tipo de mensagem?</h2>
+  <br />
+  <br />
+  <form method=post>
+    <input type="submit" name="message_type" value="ERROR" />
+    <input type="submit" name="message_type" value="SUCCESS" />
+    <input type="submit" name="message_type" value="WARN" />
+    <input type="submit" name="message_type" value="INFO" />
+  </form>
+{% endblock %}
