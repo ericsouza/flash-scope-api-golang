@@ -110,19 +110,22 @@ func addMessages(c echo.Context) error {
 	redisKey := "message::" + sub
 	rdb := c.Get(string(redisClientKey)).(*redis.Client)
 
-	// Iniciar uma transação Redis para garantir que RPUSH e EXPIRE aconteçam juntos
-	_, err := rdb.Pipeline().Pipelined(ctx, func(pipeliner redis.Pipeliner) error {
-		// Adicionar cada mensagem na lista Redis usando RPUSH
-		for _, message := range flashes {
-			// Serializar a mensagem para armazenar no Redis
-			serializedMessage, err := json.Marshal(message)
-			if err != nil {
-				return err
-			}
-
-			// Executar RPUSH para adicionar a mensagem na lista
-			pipeliner.RPush(ctx, redisKey, serializedMessage)
+	// Serializar todas as mensagens para armazenar no Redis
+	var serializedMessages []interface{}
+	for _, flash := range flashes {
+		serializedMessage, err := json.Marshal(flash)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, echo.Map{
+				"error": "Failed to serialize messages",
+			})
 		}
+		serializedMessages = append(serializedMessages, string(serializedMessage))
+	}
+
+	// Usar pipeline para executar RPUSH e EXPIRE
+	_, err := rdb.Pipeline().Pipelined(ctx, func(pipeliner redis.Pipeliner) error {
+		// Adicionar a lista de mensagens na lista Redis com RPUSH
+		pipeliner.RPush(ctx, redisKey, serializedMessages...)
 
 		// Atualizar o TTL da chave para 60 segundos
 		pipeliner.Expire(ctx, redisKey, 60*time.Second)
